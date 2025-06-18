@@ -15,8 +15,9 @@ export const fetchContents = createAsyncThunk(
   "content/fetchContents",
   async () => {
     try {
+      // Try to fetch from Strapi first
       const response = await strapiApi.getContents();
-      return response.data.map((item: any) => ({
+      return response.data.map((item) => ({
         id: item.id,
         title: item.attributes.title,
         description: item.attributes.description,
@@ -24,8 +25,36 @@ export const fetchContents = createAsyncThunk(
         updatedAt: item.attributes.updatedAt,
       }));
     } catch (error) {
-      console.log("Strapi not available, using demo data");
-      // Return demo data when Strapi is not available
+      console.log("Strapi not available, trying Supabase...");
+
+      // If Strapi is not available, try Supabase
+      if (supabase) {
+        try {
+          const { data: supabaseData, error: supabaseError } = await supabase
+            .from("contents")
+            .select("*")
+            .order("created_at", { ascending: false });
+
+          if (supabaseError) {
+            throw supabaseError;
+          }
+
+          return supabaseData.map((item) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            createdAt: item.created_at,
+            updatedAt: item.updated_at,
+          }));
+        } catch (supabaseError) {
+          console.error("Failed to fetch from Supabase:", supabaseError);
+          // Fall back to demo data
+          return demoContents;
+        }
+      }
+
+      // If neither is available, return demo data
+      console.log("No backend available, using demo data");
       return demoContents;
     }
   }
@@ -35,7 +64,7 @@ export const createContent = createAsyncThunk(
   "content/createContent",
   async (data: { title: string; description: string }) => {
     try {
-      // Create in Strapi
+      // Try to create in Strapi first
       const strapiResponse = await strapiApi.createContent(data);
 
       // Sync to Supabase if available
@@ -64,7 +93,41 @@ export const createContent = createAsyncThunk(
         updatedAt: strapiResponse.data.attributes.updatedAt,
       };
     } catch (error) {
-      // If Strapi is not available, create a demo entry
+      console.log("Strapi not available, trying Supabase...");
+
+      // If Strapi is not available, try Supabase
+      if (supabase) {
+        try {
+          const supabaseData = {
+            title: data.title,
+            description: data.description,
+          };
+
+          const { data: supabaseResponse, error: supabaseError } =
+            await supabase
+              .from("contents")
+              .insert(supabaseData)
+              .select()
+              .single();
+
+          if (supabaseError) {
+            throw supabaseError;
+          }
+
+          return {
+            id: supabaseResponse.id,
+            title: supabaseResponse.title,
+            description: supabaseResponse.description,
+            createdAt: supabaseResponse.created_at,
+            updatedAt: supabaseResponse.updated_at,
+          };
+        } catch (supabaseError) {
+          console.error("Failed to create in Supabase:", supabaseError);
+          throw supabaseError;
+        }
+      }
+
+      // If neither Strapi nor Supabase is available, create a demo entry
       const newId = Math.max(...demoContents.map((c) => c.id)) + 1;
       const newContent = {
         id: newId,
@@ -74,7 +137,7 @@ export const createContent = createAsyncThunk(
         updatedAt: new Date().toISOString(),
       };
 
-      console.log("Strapi not available, created demo content:", newContent);
+      console.log("No backend available, created demo content:", newContent);
       return newContent;
     }
   }
