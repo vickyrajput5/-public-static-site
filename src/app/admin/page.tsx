@@ -75,7 +75,7 @@ export default function AdminPage() {
       <Navigation />
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12'>
         <div className='flex justify-between items-center mb-8'>
-          <h1 className='text-3xl font-bold text-gray-900'>
+          <h1 className='text-xl md:text-3xl font-bold text-gray-900'>
             Content Management
           </h1>
           <button
