@@ -6,7 +6,7 @@ import { AppDispatch, RootState } from "@/lib/redux/store";
 import { fetchContents, deleteContent } from "@/lib/redux/contentSlice";
 import Navigation from "@/components/Navigation";
 import ContentForm from "@/components/ContentForm";
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import toast from "react-hot-toast";
 
@@ -17,20 +17,34 @@ export default function AdminPage() {
   );
   const [showForm, setShowForm] = useState(false);
   const [editingContent, setEditingContent] = useState<any>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [contentToDelete, setContentToDelete] = useState<any>(null);
 
   useEffect(() => {
     dispatch(fetchContents());
   }, [dispatch]);
 
-  const handleDelete = async (id: number) => {
-    if (confirm("Are you sure you want to delete this content?")) {
+  const handleDeleteClick = (content: any) => {
+    setContentToDelete(content);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (contentToDelete) {
       try {
-        await dispatch(deleteContent(id)).unwrap();
+        await dispatch(deleteContent(contentToDelete.id)).unwrap();
         toast.success("Content deleted successfully");
+        setShowDeleteModal(false);
+        setContentToDelete(null);
       } catch (error) {
         toast.error("Failed to delete content");
       }
     }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setContentToDelete(null);
   };
 
   const handleEdit = (content: any) => {
@@ -128,7 +142,7 @@ export default function AdminPage() {
                         <Edit className='w-4 h-4' />
                       </button>
                       <button
-                        onClick={() => handleDelete(content.id)}
+                        onClick={() => handleDeleteClick(content)}
                         className='p-2 text-gray-400 hover:text-red-600'
                       >
                         <Trash2 className='w-4 h-4' />
@@ -144,6 +158,53 @@ export default function AdminPage() {
 
       {showForm && (
         <ContentForm content={editingContent} onClose={handleFormClose} />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && contentToDelete && (
+        <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50'>
+          <div className='bg-white rounded-lg shadow-xl max-w-md w-full mx-4'>
+            <div className='flex items-center p-6 border-b border-red-200 bg-red-50'>
+              <AlertTriangle className='w-6 h-6 text-red-600 mr-3' />
+              <h2 className='text-xl font-semibold text-red-900'>
+                Confirm Deletion
+              </h2>
+            </div>
+
+            <div className='p-6'>
+              <p className='text-gray-700 mb-4'>
+                Are you sure you want to delete this content?
+              </p>
+              <div className='bg-gray-50 p-4 rounded-md mb-6'>
+                <h3 className='font-semibold text-gray-900 mb-2'>
+                  {contentToDelete.title}
+                </h3>
+                <p className='text-gray-600 text-sm'>
+                  {contentToDelete.description}
+                </p>
+              </div>
+              <p className='text-red-600 text-sm mb-6'>
+                <strong>Warning:</strong> This action cannot be undone. The
+                content will be permanently deleted.
+              </p>
+
+              <div className='flex justify-end space-x-3'>
+                <button
+                  onClick={handleDeleteCancel}
+                  className='px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500'
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  className='px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500'
+                >
+                  Delete Content
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
